@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ruby — Stone Card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,200;0,300;1,200;1,300&family=Noto+Serif+JP:wght@100;200;300&family=Cinzel:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { height:100%; }
+body {
+  min-height:100%;
+  background:#0d0608;
+  font-family:'Noto Serif JP', serif;
+  color:#f0ddd8;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+:root {
+  --bg:        #0d0608;
+  --bg-mid:    #130a0c;
+  --bg-warm:   #1a0e10;
+  --ruby-core:   #8b0000;
+  --ruby-mid:    #b01030;
+  --ruby-bright: #cc2040;
+  --ruby-glow:   #e8305a;
+  --ruby-ember:  #ff6040;
+  --ruby-dark:   #400010;
+  --gold-warm:   #c87840;
+  --gold-dim:    rgba(200,120,64,0.35);
+  --pearl:     rgba(240,221,216,0.90);
+  --pearl-dim: rgba(240,221,216,0.45);
+  --pad:       28px;
+  --ease-silk: cubic-bezier(0.25,0.46,0.45,0.94);
+}
+
+/* SCREEN MANAGER */
+.screen {
+  position:fixed; inset:0;
+  display:flex; flex-direction:column; align-items:center;
+  overflow-y:auto; overflow-x:hidden;
+  transition:opacity .85s var(--ease-silk), transform .85s var(--ease-silk);
+  will-change:opacity,transform;
+}
+.screen.hidden    { opacity:0; pointer-events:none; transform:translateY(30px); }
+.screen.slide-out { opacity:0; pointer-events:none; transform:translateY(-38px); }
+
+/* AMBIENT */
+.ambient {
+  position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;
+}
+.amb-base {
+  position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 105%, rgba(139,0,0,0.55)   0%, rgba(80,0,0,0.30) 35%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 20% 80%,  rgba(100,10,20,0.35)  0%, transparent 55%),
+    radial-gradient(ellipse 55% 35% at 80% 70%,  rgba(120,20,10,0.28)  0%, transparent 50%),
+    radial-gradient(ellipse 40% 30% at 50% 40%,  rgba(80,5,15,0.20)    0%, transparent 55%),
+    linear-gradient(180deg, #0a0507 0%, #0f0809 30%, #130a0c 60%, #180c0f 100%);
+}
+.ember-core {
+  position:absolute;
+  width:340px; height:340px;
+  bottom:-120px; left:50%; transform:translateX(-50%);
+  border-radius:50%;
+  background:radial-gradient(circle,
+    rgba(204,32,64,0.28)  0%,
+    rgba(139,0,0,0.18)    35%,
+    rgba(80,0,0,0.08)     60%,
+    transparent           80%);
+  filter:blur(40px);
+  animation:emberBreath 6s ease-in-out infinite;
+}
+@keyframes emberBreath {
+  0%,100%{ transform:translateX(-50%) scale(1);   opacity:.55; }
+  50%    { transform:translateX(-50%) scale(1.18); opacity:1; }
+}
+.ember-upper {
+  position:absolute;
+  width:260px; height:180px;
+  top:20%; left:50%; transform:translateX(-50%);
+  border-radius:50%;
+  background:radial-gradient(circle,
+    rgba(139,0,0,0.15) 0%,
+    rgba(80,0,0,0.08)  50%,
+    transparent        75%);
+  filter:blur(35px);
+  animation:emberUpper 9s ease-in-out infinite alternate;
+}
+@keyframes emberUpper {
+  0%  { opacity:.30; transform:translateX(-50%) scale(1)    translateY(0); }
+  100%{ opacity:.70; transform:translateX(-50%) scale(1.12) translateY(-15px); }
+}
+.heat-veil {
+  position:absolute; inset:0;
+  background:repeating-linear-gradient(
+    180deg,
+    transparent                    0px,
+    transparent                    8px,
+    rgba(139,0,0,0.018)            8px,
+    rgba(139,0,0,0.018)            9px
+  );
+  animation:heatRise 12s linear infinite;
+  opacity:.5;
+}
+@keyframes heatRise {
+  0%  { background-position:0 0; }
+  100%{ background-position:0 -200px; }
+}
+#embers { position:absolute; inset:0; }
+.ember {
+  position:absolute; border-radius:50%;
+  background:radial-gradient(circle, var(--ec, rgba(204,80,40,0.9)) 0%, transparent 70%);
+  animation:emberRise var(--ed,20s) ease-in-out infinite;
+  animation-delay:var(--edl,0s);
+}
+@keyframes emberRise {
+  0%   { transform:translateY(0)     translateX(0)         scale(1);   opacity:0; }
+  8%   { opacity:var(--eop,.5); }
+  70%  { opacity:var(--eop,.5); }
+  100% { transform:translateY(-90vh) translateX(var(--ex,8px)) scale(.5); opacity:0; }
+}
+.vignette {
+  position:absolute; inset:0;
+  background:radial-gradient(ellipse 85% 85% at 50% 50%,
+    transparent 40%,
+    rgba(6,2,4,0.50) 100%);
+  pointer-events:none;
+}
+
+/* ① CARD SCREEN */
+#cardScreen { z-index:10; background:transparent; padding:0; }
+
+.card-scene {
+  width:100%; max-width:430px;
+  min-height:100svh;
+  display:flex; flex-direction:column; align-items:center;
+  padding:44px var(--pad) 44px;
+  position:relative; z-index:2;
+}
+
+.date-chip {
+  font-family:'Cinzel', serif;
+  font-size:9px; letter-spacing:3.5px;
+  color:rgba(200,120,64,0.50);
+  margin-bottom:28px;
+  animation:fadeSlideDown .9s var(--ease-silk) forwards;
+}
+
+/* カードラッパー: ボタン同幅のため共通幅 */
+.card-wrapper {
+  width:100%; max-width:340px;
+  display:flex; flex-direction:column; align-items:center;
+}
+
+/* カードサイズ: max-width:340px / aspect-ratio:0.65 */
+.stone-card {
+  width:100%;
+  aspect-ratio:0.65;
+  border-radius:28px;
+  position:relative; overflow:hidden; cursor:pointer;
+  animation:cardReveal 1.1s var(--ease-silk) .15s both;
+  box-shadow:
+    0 0  55px rgba(139,0,0,0.30),
+    0 0 110px rgba(80,0,0,0.18),
+    0 40px 80px rgba(0,0,0,0.70),
+    inset 0 1px 0 rgba(240,120,80,0.12),
+    inset 0 0 0 1px rgba(176,48,60,0.15);
+  transition:box-shadow .5s ease, transform .18s ease;
+}
+.stone-card:hover {
+  box-shadow:
+    0 0  75px rgba(139,0,0,0.42),
+    0 0 150px rgba(80,0,0,0.24),
+    0 50px 90px rgba(0,0,0,0.75),
+    inset 0 1px 0 rgba(240,120,80,0.18),
+    inset 0 0 0 1px rgba(176,48,60,0.22);
+}
+@keyframes cardReveal {
+  0%  { opacity:0; transform:translateY(24px) scale(.97); }
+  100%{ opacity:1; transform:translateY(0)    scale(1); }
+}
+
+/* RUBY STONE GRADIENT */
+.card-stone {
+  position:absolute; inset:0;
+  animation:rubyShift 12s ease-in-out infinite alternate;
+}
+@keyframes rubyShift {
+  0% {
+    background:
+      radial-gradient(ellipse 42% 38% at 46% 44%, rgba(220,80,80,0.55) 0%, rgba(180,20,40,0.40) 30%, transparent 62%),
+      radial-gradient(ellipse 28% 20% at 30% 25%, rgba(255,100,80,0.38) 0%, rgba(220,60,60,0.22) 35%, transparent 58%),
+      radial-gradient(ellipse 22% 16% at 72% 30%, rgba(200,40,60,0.32) 0%, transparent 55%),
+      radial-gradient(ellipse 18% 14% at 62% 78%, rgba(240,80,60,0.28) 0%, transparent 50%),
+      radial-gradient(ellipse 60% 55% at 38% 55%, rgba(139,0,0,0.75) 0%, rgba(100,0,20,0.60) 40%, transparent 70%),
+      radial-gradient(ellipse 55% 48% at 65% 45%, rgba(100,0,20,0.65) 0%, rgba(64,0,16,0.50) 45%, transparent 68%),
+      linear-gradient(145deg, #1a0508 0%, #280a10 15%, #380515 28%, #1e0208 42%, #320810 58%, #200408 74%, #0f0306 100%);
+  }
+  50% {
+    background:
+      radial-gradient(ellipse 46% 42% at 50% 42%, rgba(230,90,85,0.60) 0%, rgba(190,25,45,0.44) 32%, transparent 62%),
+      radial-gradient(ellipse 30% 22% at 28% 22%, rgba(255,110,85,0.42) 0%, rgba(230,65,65,0.25) 38%, transparent 58%),
+      radial-gradient(ellipse 24% 18% at 74% 28%, rgba(210,45,65,0.36) 0%, transparent 55%),
+      radial-gradient(ellipse 20% 15% at 60% 80%, rgba(250,85,65,0.32) 0%, transparent 50%),
+      radial-gradient(ellipse 62% 58% at 40% 56%, rgba(148,5,5,0.78) 0%, rgba(108,0,22,0.64) 42%, transparent 70%),
+      radial-gradient(ellipse 58% 50% at 67% 46%, rgba(108,0,22,0.68) 0%, rgba(68,0,18,0.54) 46%, transparent 68%),
+      linear-gradient(152deg, #1c060a 0%, #2c0c12 15%, #3c0618 28%, #220308 42%, #360a12 58%, #220508 74%, #100408 100%);
+  }
+  100% {
+    background:
+      radial-gradient(ellipse 40% 36% at 44% 46%, rgba(210,72,75,0.50) 0%, rgba(172,18,38,0.37) 28%, transparent 60%),
+      radial-gradient(ellipse 26% 18% at 32% 28%, rgba(248,95,75,0.36) 0%, rgba(215,55,58,0.20) 32%, transparent 56%),
+      radial-gradient(ellipse 20% 14% at 70% 32%, rgba(195,38,58,0.30) 0%, transparent 52%),
+      radial-gradient(ellipse 16% 13% at 64% 76%, rgba(235,75,58,0.26) 0%, transparent 48%),
+      radial-gradient(ellipse 58% 52% at 36% 54%, rgba(132,0,0,0.72) 0%, rgba(95,0,18,0.56) 38%, transparent 68%),
+      radial-gradient(ellipse 52% 46% at 63% 44%, rgba(95,0,18,0.62) 0%, rgba(60,0,14,0.47) 43%, transparent 66%),
+      linear-gradient(138deg, #180408 0%, #260808 15%, #360412 28%, #1c0206 42%, #2e0808 58%, #1e0406 74%, #0c0204 100%);
+  }
+}
+
+/* FACETS */
+.card-facets {
+  position:absolute; inset:0; overflow:hidden;
+  mix-blend-mode:screen;
+}
+.facet {
+  position:absolute;
+  background:linear-gradient(var(--fa,135deg),
+    transparent 0%,
+    rgba(220,80,60,var(--fo,.08)) 40%,
+    rgba(255,120,80,var(--fo2,.05)) 60%,
+    transparent 100%);
+  animation:facetShift var(--fd,18s) ease-in-out infinite alternate;
+  animation-delay:var(--fdl,0s);
+}
+@keyframes facetShift {
+  0%  { opacity:var(--fo,.08); transform:skewX(0deg) translateX(0); }
+  100%{ opacity:calc(var(--fo,.08)*1.8); transform:skewX(3deg) translateX(5%); }
+}
+.card-inner-glow {
+  position:absolute; inset:0;
+  background:radial-gradient(ellipse 55% 50% at 50% 48%,
+    rgba(200,30,50,0.22) 0%, rgba(139,0,0,0.12) 40%, transparent 70%);
+  animation:innerGlow 5s ease-in-out infinite;
+  mix-blend-mode:screen;
+}
+@keyframes innerGlow {
+  0%,100%{ opacity:.60; transform:scale(1); }
+  50%    { opacity:1;   transform:scale(1.08); }
+}
+.card-inclusions {
+  position:absolute; inset:0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 24% 30%, rgba(255,120,100,.50) 0%,transparent 100%),
+    radial-gradient(1px   1px   at 66% 24%, rgba(220,80,60,.40)   0%,transparent 100%),
+    radial-gradient(2px   2px   at 42% 58%, rgba(255,80,60,.45)   0%,transparent 100%),
+    radial-gradient(1px   1px   at 78% 68%, rgba(220,100,80,.35)  0%,transparent 100%),
+    radial-gradient(1px   1px   at 14% 76%, rgba(255,100,70,.30)  0%,transparent 100%),
+    radial-gradient(2.5px 2.5px at 56% 18%, rgba(255,140,100,.55) 0%,transparent 100%),
+    radial-gradient(1px   1px   at 86% 42%, rgba(220,60,50,.25)   0%,transparent 100%),
+    radial-gradient(1.5px 1.5px at 34% 84%, rgba(255,80,60,.38)   0%,transparent 100%),
+    radial-gradient(1px   1px   at 70% 76%, rgba(240,100,80,.32)  0%,transparent 100%);
+  animation:inclusionPulse 6s ease-in-out infinite alternate;
+}
+@keyframes inclusionPulse { 0%{opacity:.45} 100%{opacity:.90} }
+.card-seam {
+  position:absolute; left:-20%; right:-20%;
+  border-radius:50%; filter:blur(5px);
+  animation:seamGlow var(--sw,10s) ease-in-out infinite; animation-delay:var(--sl,0s);
+}
+.cs1 { top:30%; height:2px;
+  background:linear-gradient(90deg,transparent,rgba(220,60,40,.60),rgba(255,100,60,.50),rgba(220,60,40,.55),transparent);
+  --sw:10s; }
+.cs2 { top:52%; height:1.5px;
+  background:linear-gradient(90deg,transparent,rgba(180,20,30,.55),rgba(220,60,40,.55),transparent);
+  --sw:13s; --sl:-4.5s; }
+.cs3 { top:70%; height:1px;
+  background:linear-gradient(90deg,transparent,rgba(200,40,30,.40),rgba(180,30,20,.35),transparent);
+  --sw:16s; --sl:-8s; }
+@keyframes seamGlow {
+  0%,100%{ opacity:.15; transform:scaleX(.65) translateX(-8%); }
+  50%    { opacity:1;   transform:scaleX(1.20) translateX(4%); }
+}
+.card-rim {
+  position:absolute; inset:0; border-radius:28px;
+  border:1px solid rgba(176,48,60,.28); pointer-events:none;
+}
+.card-rim::before {
+  content:''; position:absolute; inset:1px; border-radius:27px;
+  border:1px solid rgba(240,100,80,.06);
+}
+
+/* CARD INNER */
+.card-inner {
+  position:relative; z-index:5; height:100%;
+  display:flex; flex-direction:column; padding:26px 22px 30px;
+}
+.ci-header { display:flex; align-items:center; gap:8px; margin-bottom:18px; }
+.ci-line { flex:1; height:1px;
+  background:linear-gradient(90deg,transparent,rgba(200,120,64,.42),transparent); }
+.ci-gem {
+  width:5px; height:5px; transform:rotate(45deg);
+  background:radial-gradient(circle,rgba(255,120,80,.95),rgba(176,48,60,.50));
+  box-shadow:0 0 10px rgba(220,80,60,.60);
+}
+.ci-name { text-align:center; margin-bottom:14px; }
+.ci-name-en {
+  font-family:'Cinzel', serif; font-weight:300;
+  font-size:24px; letter-spacing:6px;
+  color:rgba(240,216,208,.95);
+  text-shadow:
+    0 0 22px rgba(220,60,40,.70),
+    0 0 45px rgba(139,0,0,.35),
+    0 0 80px rgba(100,0,0,.20);
+  display:block; margin-bottom:5px;
+}
+.ci-name-jp {
+  font-size:10px; font-weight:200; letter-spacing:5px;
+  color:rgba(200,120,64,.65); display:block;
+}
+
+/* ORB */
+.ci-orb-wrap {
+  flex:1; display:flex; align-items:center; justify-content:center; position:relative;
+}
+.ci-orb-corona {
+  position:absolute; width:240px; height:240px; border-radius:50%;
+  background:radial-gradient(circle,
+    rgba(139,0,0,.22) 0%, rgba(80,0,0,.14) 45%, transparent 70%);
+  filter:blur(25px);
+  animation:coronaPulse 6s ease-in-out infinite;
+}
+@keyframes coronaPulse { 0%,100%{opacity:.45;transform:scale(1)} 50%{opacity:1;transform:scale(1.12)} }
+.ci-orb-ring {
+  position:absolute; width:185px; height:185px; border-radius:50%;
+  border:1px solid rgba(176,48,60,.20);
+  animation:ringPulse 4s ease-in-out infinite;
+}
+.ci-orb-ring2 {
+  position:absolute; width:200px; height:200px; border-radius:50%;
+  border:1px solid rgba(139,0,0,.10);
+  animation:ringPulse 4s ease-in-out infinite .8s;
+}
+@keyframes ringPulse {
+  0%,100%{ transform:scale(1);    opacity:.4; }
+  50%    { transform:scale(1.06); opacity:.0; }
+}
+.ci-orb {
+  width:148px; height:148px; border-radius:50%;
+  position:relative; overflow:hidden;
+  animation:orbPulse 7s ease-in-out infinite;
+  box-shadow:
+    0 0 40px rgba(139,0,0,.45),
+    0 0 80px rgba(80,0,0,.25),
+    0 0 140px rgba(60,0,0,.15),
+    inset 0 -12px 30px rgba(0,0,0,.55),
+    inset 0 6px 18px rgba(220,60,40,.12);
+}
+@keyframes orbPulse {
+  0%,100%{ transform:scale(1); }
+  45%    { transform:scale(1.025); }
+  55%    { transform:scale(1.020); }
+}
+.orb-bg {
+  position:absolute; inset:0; border-radius:50%;
+  background:
+    radial-gradient(ellipse 45% 40% at 46% 42%, rgba(220,80,60,.70) 0%, rgba(180,20,40,.52) 28%, transparent 55%),
+    radial-gradient(ellipse 28% 20% at 28% 22%, rgba(255,100,70,.55) 0%, rgba(220,60,50,.30) 35%, transparent 55%),
+    radial-gradient(ellipse 20% 14% at 74% 30%, rgba(200,40,55,.42) 0%, transparent 52%),
+    radial-gradient(ellipse 72% 68% at 50% 52%, rgba(139,0,0,.90) 0%, rgba(90,0,18,.96) 50%, rgba(40,0,8,1) 75%),
+    radial-gradient(ellipse 55% 30% at 50% 95%, rgba(80,10,0,.60) 0%, transparent 55%);
+  animation:orbGemSurf 11s ease-in-out infinite alternate;
+}
+@keyframes orbGemSurf {
+  0%  { filter:brightness(1)    saturate(1)    contrast(1); }
+  100%{ filter:brightness(1.12) saturate(1.18) contrast(1.05); }
+}
+.orb-asterism {
+  position:absolute; inset:0; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  animation:asterismRotate 30s linear infinite;
+}
+.asterism-ray {
+  position:absolute; width:100%; height:1px;
+  background:linear-gradient(90deg,
+    transparent 0%, rgba(255,160,120,.0) 25%,
+    rgba(255,160,120,.35) 42%, rgba(255,200,160,.55) 50%,
+    rgba(255,160,120,.35) 58%, rgba(255,160,120,.0) 75%, transparent 100%);
+  filter:blur(0.8px);
+}
+.ar1 { transform:rotate(0deg); }
+.ar2 { transform:rotate(60deg); }
+.ar3 { transform:rotate(120deg); }
+@keyframes asterismRotate {
+  0%  { transform:rotate(0deg); }
+  100%{ transform:rotate(360deg); }
+}
+.orb-hl {
+  position:absolute; width:38%; height:28%; top:16%; left:20%;
+  background:radial-gradient(ellipse,rgba(255,160,130,.28) 0%,transparent 70%);
+  border-radius:50%; filter:blur(4px);
+}
+.orb-hl2 {
+  position:absolute; width:15%; height:12%; top:14%; right:25%;
+  background:radial-gradient(ellipse,rgba(255,180,150,.45) 0%,transparent 70%);
+  border-radius:50%; filter:blur(2px);
+  animation:hl2Blink 5s ease-in-out infinite;
+}
+@keyframes hl2Blink { 0%,100%{opacity:.45} 50%{opacity:1} }
+.orb-fire {
+  position:absolute; inset:0; border-radius:50%;
+  background:radial-gradient(ellipse 50% 44% at 48% 46%,
+    rgba(200,30,50,.30) 0%, rgba(139,0,0,.15) 45%, transparent 65%);
+  animation:firePulse 4s ease-in-out infinite;
+  mix-blend-mode:screen;
+}
+@keyframes firePulse {
+  0%,100%{ opacity:.5; transform:scale(1); }
+  50%    { opacity:1;  transform:scale(1.06); }
+}
+
+/* Keywords */
+.ci-keywords { display:flex; justify-content:center; gap:8px; margin:18px 0 14px; flex-wrap:wrap; }
+.ci-kw {
+  font-size:9.5px; font-weight:300; letter-spacing:2.5px;
+  color:rgba(220,140,100,.88);
+  padding:4px 12px; border-radius:20px;
+  border:1px solid rgba(176,48,60,.28);
+  background:rgba(139,0,0,.08);
+  backdrop-filter:blur(6px);
+}
+
+/* メッセージ — 「」なし */
+.ci-msgs { text-align:center; padding:0 2px; margin-bottom:18px; }
+.ci-msg {
+  font-size:11.5px; font-weight:200; line-height:2.1;
+  color:rgba(240,216,208,.85); font-style:italic;
+  text-shadow:0 0 16px rgba(176,48,60,.28);
+}
+
+/* フッター: Crystal Message */
+.ci-footer { display:flex; align-items:center; gap:8px; }
+.ci-footer .ci-line { background:linear-gradient(90deg,transparent,rgba(176,48,60,.22),transparent); }
+.ci-footer-lbl {
+  font-family:'Cinzel', serif; font-size:7.5px; letter-spacing:2.5px;
+  color:rgba(200,100,64,.32); white-space:nowrap;
+}
+
+/* Below card — ボタンをカードと同幅 */
+.card-sub {
+  margin-top:22px; text-align:center;
+  width:100%; max-width:340px;
+  animation:fadeSlideUp 1s var(--ease-silk) .6s both;
+}
+.card-sub-msg {
+  font-size:12px; font-weight:200; letter-spacing:1.5px;
+  color:rgba(240,216,208,.38); margin-bottom:20px; line-height:1.9;
+}
+
+/* CTA button — width:100% でカード同幅 */
+.cta-btn {
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  width:100%;
+  padding:15px 32px; border-radius:50px;
+  border:1px solid rgba(176,48,60,.30);
+  background:rgba(139,0,0,.06);
+  backdrop-filter:blur(12px);
+  cursor:pointer; outline:none;
+  font-family:'Noto Serif JP', serif;
+  font-size:12px; font-weight:300; letter-spacing:2px;
+  color:rgba(240,216,208,.70);
+  transition:all .4s var(--ease-silk);
+  position:relative; overflow:hidden; text-decoration:none;
+}
+.cta-btn::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(135deg,
+    rgba(220,60,40,.10) 0%,rgba(176,48,60,.08) 50%,rgba(139,0,0,.10) 100%);
+  opacity:0; transition:opacity .4s ease;
+}
+.cta-btn:hover {
+  border-color:rgba(220,60,40,.50);
+  box-shadow:0 0 28px rgba(139,0,0,.22), inset 0 1px 0 rgba(255,120,80,.10);
+  transform:translateY(-2px); color:rgba(248,228,220,.92);
+}
+.cta-btn:hover::before { opacity:1; }
+.cta-btn:active { transform:translateY(0); }
+.cta-icon { font-size:11px; color:rgba(200,100,64,.55); animation:gemSpin 12s linear infinite; }
+@keyframes gemSpin { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+
+/* ② DETAIL SCREEN */
+#detailScreen { z-index:9; background:transparent; padding:0; }
+.detail-scene {
+  width:100%; max-width:430px;
+  min-height:100svh; position:relative; z-index:2;
+  padding:0 0 68px;
+}
+.d-hero {
+  position:relative; width:100%; padding:58px var(--pad) 44px;
+  text-align:center;
+  border-bottom:1px solid rgba(176,48,60,.10);
+  animation:fadeSlideDown .9s var(--ease-silk) both;
+}
+
+/* ← カードに戻る (左上に配置) */
+.d-back {
+  position:absolute; top:22px; left:var(--pad);
+  display:flex; align-items:center; gap:7px;
+  font-size:10px; letter-spacing:2px; color:rgba(200,100,64,.48);
+  cursor:pointer; border:none; background:transparent;
+  font-family:'Noto Serif JP', serif; font-weight:300;
+  transition:color .3s ease; outline:none;
+}
+.d-back:hover { color:rgba(220,120,80,.88); }
+
+.d-mini-orb {
+  width:94px; height:94px; border-radius:50%;
+  margin:0 auto 24px; position:relative; overflow:hidden;
+  box-shadow:
+    0 0 36px rgba(139,0,0,.40),
+    0 0 70px rgba(80,0,0,.22),
+    inset 0 4px 12px rgba(220,60,40,.10);
+  animation:orbPulse 7s ease-in-out infinite;
+}
+.d-title-en {
+  font-family:'Cinzel', serif; font-weight:300;
+  font-size:16px; letter-spacing:6px;
+  color:rgba(240,216,208,.88);
+  text-shadow:0 0 22px rgba(176,48,60,.55);
+  display:block; margin-bottom:6px;
+}
+.d-title-jp {
+  font-size:26px; font-weight:100; letter-spacing:4px;
+  color:rgba(240,216,208,.92); display:block; margin-bottom:14px;
+}
+.d-subtitle {
+  font-size:12px; font-weight:200; letter-spacing:1.5px;
+  color:rgba(200,100,64,.68); line-height:1.9; font-style:italic;
+}
+.d-body { padding:0 var(--pad); }
+.d-section { padding:36px 0 0; }
+.d-label {
+  font-family:'Cinzel', serif; font-size:8.5px;
+  letter-spacing:3.5px; color:var(--gold-dim);
+  margin-bottom:16px; display:flex; align-items:center; gap:10px;
+}
+.d-label::after {
+  content:''; flex:1; height:1px;
+  background:linear-gradient(90deg,rgba(176,48,60,.38),transparent);
+}
+.d-traits { display:flex; flex-direction:column; gap:11px; }
+.d-trait {
+  display:flex; align-items:flex-start; gap:12px;
+  padding:15px 16px; border-radius:18px;
+  background:rgba(139,0,0,.06);
+  border:1px solid rgba(176,48,60,.12);
+  backdrop-filter:blur(8px);
+  transition:all .38s var(--ease-silk);
+}
+.d-trait:hover {
+  background:rgba(139,0,0,.12);
+  border-color:rgba(220,60,40,.26);
+  transform:translateX(5px);
+}
+.d-trait-dot {
+  width:6px; height:6px; min-width:6px; margin-top:6px; border-radius:50%;
+  background:radial-gradient(circle,rgba(255,120,80,.95),rgba(176,48,60,.50));
+  box-shadow:0 0 8px rgba(220,60,40,.55);
+}
+.d-trait-text {
+  font-size:13px; font-weight:200; letter-spacing:1px;
+  color:rgba(240,216,208,.80); line-height:1.75;
+}
+.d-msg-card {
+  margin-top:32px; padding:30px 24px;
+  border-radius:22px;
+  background:rgba(80,0,10,.10);
+  border:1px solid rgba(176,48,60,.16);
+  backdrop-filter:blur(12px);
+  position:relative; overflow:hidden;
+}
+.d-msg-card::before {
+  content:''; position:absolute; top:-60px; right:-50px;
+  width:170px; height:170px; border-radius:50%;
+  background:radial-gradient(circle,rgba(139,0,0,.12) 0%,transparent 70%);
+  pointer-events:none;
+  animation:msgGlow 6s ease-in-out infinite alternate;
+}
+.d-msg-card::after {
+  content:''; position:absolute; bottom:-40px; left:-35px;
+  width:130px; height:130px; border-radius:50%;
+  background:radial-gradient(circle,rgba(80,0,0,.08) 0%,transparent 70%);
+  pointer-events:none;
+}
+@keyframes msgGlow {
+  0%  { opacity:.5; transform:scale(1); }
+  100%{ opacity:1;  transform:scale(1.12); }
+}
+.d-msg-label {
+  font-family:'Cinzel', serif; font-size:8px;
+  letter-spacing:3.5px; color:rgba(200,100,64,.45);
+  margin-bottom:16px; display:block;
+}
+.d-msg-text {
+  font-size:14.5px; font-weight:100; line-height:2.2;
+  color:rgba(240,216,208,.88); font-style:italic;
+  text-shadow:0 0 20px rgba(139,0,0,.20);
+}
+.d-wave-div {
+  margin:32px 0; display:flex; align-items:center; gap:12px;
+}
+.d-wave-line { flex:1; height:1px; background:linear-gradient(90deg,transparent,rgba(176,48,60,.18),transparent); }
+.d-wave-drop {
+  width:5px; height:5px; transform:rotate(45deg);
+  background:rgba(176,48,60,.42);
+  box-shadow:0 0 6px rgba(176,48,60,.30);
+}
+.d-closing {
+  margin-top:26px; text-align:center; padding:0 8px;
+}
+.d-closing-text {
+  font-size:10.5px; font-weight:200; letter-spacing:2px;
+  color:rgba(200,100,64,.35); line-height:2;
+}
+.d-actions { margin-top:36px; display:flex; flex-direction:column; gap:14px; }
+.btn-secondary {
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  padding:16px 28px; border-radius:50px;
+  border:1px solid rgba(176,48,60,.22);
+  background:rgba(139,0,0,.05);
+  backdrop-filter:blur(12px);
+  cursor:pointer; outline:none;
+  font-family:'Noto Serif JP', serif;
+  font-size:12.5px; font-weight:300; letter-spacing:2px;
+  color:rgba(240,216,208,.62);
+  transition:all .38s var(--ease-silk); text-decoration:none;
+}
+.btn-secondary:hover {
+  border-color:rgba(220,60,40,.42);
+  background:rgba(139,0,0,.10);
+  box-shadow:0 0 24px rgba(139,0,0,.16);
+  color:rgba(248,228,220,.90); transform:translateY(-2px);
+}
+.btn-secondary:active { transform:translateY(0); }
+.btn-icon { color:rgba(200,100,64,.48); font-size:11px; }
+
+/* KEYFRAMES */
+@keyframes fadeSlideDown {
+  0%  { opacity:0; transform:translateY(-18px); }
+  100%{ opacity:1; transform:translateY(0); }
+}
+@keyframes fadeSlideUp {
+  0%  { opacity:0; transform:translateY(18px); }
+  100%{ opacity:1; transform:translateY(0); }
+}
+.scroll-reveal {
+  opacity:0; transform:translateY(20px);
+  transition:opacity .75s ease, transform .75s ease;
+}
+.scroll-reveal.visible { opacity:1; transform:translateY(0); }
+.ptcl {
+  position:fixed; pointer-events:none; z-index:200; border-radius:50%;
+  animation:ptclBurst 1.7s var(--ease-silk) forwards;
+}
+@keyframes ptclBurst {
+  0%  { transform:translate(0,0) scale(1); opacity:1; }
+  100%{ transform:translate(var(--tx),var(--ty)) scale(0); opacity:0; }
+}
+</style>
+</head>
+<body>
+
+<!-- AMBIENT -->
+<div class="ambient">
+  <div class="amb-base"></div>
+  <div class="ember-core"></div>
+  <div class="ember-upper"></div>
+  <div class="heat-veil"></div>
+  <div id="embers"></div>
+  <div class="vignette"></div>
+</div>
+
+<!-- ① CARD SCREEN -->
+<div class="screen" id="cardScreen">
+  <div class="card-scene">
+
+    <div class="date-chip" id="dateChip">DAILY READING</div>
+
+    <!-- card-wrapper が 340px 幅を保持 → ボタンも同幅 -->
+    <div class="card-wrapper" id="cardWrapper">
+      <div class="stone-card" id="stoneCard">
+        <div class="card-stone"></div>
+
+        <div class="card-facets">
+          <div class="facet" style="width:60%;height:40%;top:10%;left:20%;--fa:125deg;--fo:.09;--fo2:.05;--fd:16s;"></div>
+          <div class="facet" style="width:45%;height:55%;top:30%;left:-5%;--fa:55deg;--fo:.07;--fo2:.04;--fd:20s;--fdl:-7s;"></div>
+          <div class="facet" style="width:50%;height:38%;top:55%;right:0%;--fa:160deg;--fo:.08;--fo2:.04;--fd:24s;--fdl:-12s;"></div>
+          <div class="facet" style="width:35%;height:30%;top:20%;right:10%;--fa:210deg;--fo:.06;--fo2:.03;--fd:18s;--fdl:-4s;"></div>
+        </div>
+
+        <div class="card-inner-glow"></div>
+        <div class="card-inclusions"></div>
+        <div class="card-seam cs1"></div>
+        <div class="card-seam cs2"></div>
+        <div class="card-seam cs3"></div>
+        <div class="card-rim"></div>
+
+        <div class="card-inner">
+          <div class="ci-header">
+            <div class="ci-line"></div>
+            <div class="ci-gem"></div>
+            <div class="ci-line"></div>
+          </div>
+
+          <div class="ci-name">
+            <span class="ci-name-en">RUBY</span>
+            <span class="ci-name-jp">ル ビ ー</span>
+          </div>
+
+          <div class="ci-orb-wrap">
+            <div class="ci-orb-corona"></div>
+            <div class="ci-orb-ring"></div>
+            <div class="ci-orb-ring2"></div>
+            <div class="ci-orb">
+              <div class="orb-bg"></div>
+              <div class="orb-asterism">
+                <div class="asterism-ray ar1"></div>
+                <div class="asterism-ray ar2"></div>
+                <div class="asterism-ray ar3"></div>
+              </div>
+              <div class="orb-hl"></div>
+              <div class="orb-hl2"></div>
+              <div class="orb-fire"></div>
+            </div>
+          </div>
+
+          <div class="ci-keywords">
+            <span class="ci-kw">情 熱</span>
+            <span class="ci-kw">生 命 力</span>
+            <span class="ci-kw">中 心</span>
+          </div>
+
+          <!-- 「」なし -->
+          <div class="ci-msgs">
+            <p class="ci-msg">その火は、すでに灯っている</p>
+            <p class="ci-msg">迷わず、自分の中心で生きていい</p>
+          </div>
+
+          <!-- Crystal Message -->
+          <div class="ci-footer">
+            <div class="ci-line"></div>
+            <span class="ci-footer-lbl">Crystal Message</span>
+            <div class="ci-line"></div>
+          </div>
+        </div>
+      </div><!-- /stone-card -->
+
+      <!-- card-sub は card-wrapper の中 → 同幅 -->
+      <div class="card-sub">
+        <p class="card-sub-msg">この石は、今のあなたに応えています</p>
+        <!-- width:100% でカードと同幅 -->
+        <button class="cta-btn" id="openDetailBtn">
+          <span class="cta-icon">✦</span>
+          この光を、もう少し深く知る？
+          <span class="cta-icon">✦</span>
+        </button>
+      </div>
+
+    </div><!-- /card-wrapper -->
+
+  </div>
+</div>
+
+<!-- ② DETAIL SCREEN -->
+<div class="screen hidden" id="detailScreen">
+  <div class="detail-scene">
+
+    <div class="d-hero">
+      <!-- ← カードに戻る (左上) -->
+      <button class="d-back" id="backBtn">← カードに戻る</button>
+      <div class="d-mini-orb">
+        <div class="orb-bg"></div>
+        <div class="orb-asterism">
+          <div class="asterism-ray ar1"></div>
+          <div class="asterism-ray ar2"></div>
+          <div class="asterism-ray ar3"></div>
+        </div>
+        <div class="orb-hl"></div>
+        <div class="orb-hl2"></div>
+        <div class="orb-fire"></div>
+      </div>
+      <span class="d-title-en">RUBY</span>
+      <span class="d-title-jp">ルビー</span>
+      <p class="d-subtitle">内側に静かに灯る火を呼び覚まし、本来の力で生きる石</p>
+    </div>
+
+    <div class="d-body">
+
+      <div class="d-section scroll-reveal">
+        <div class="d-label">Energy Features</div>
+        <div class="d-traits">
+          <div class="d-trait">
+            <div class="d-trait-dot"></div>
+            <p class="d-trait-text">内なる情熱を呼び起こす</p>
+          </div>
+          <div class="d-trait">
+            <div class="d-trait-dot"></div>
+            <p class="d-trait-text">自分の軸を静かに強くする</p>
+          </div>
+          <div class="d-trait">
+            <div class="d-trait-dot"></div>
+            <p class="d-trait-text">行動へと自然に導く</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-wave-div scroll-reveal">
+        <div class="d-wave-line"></div>
+        <div class="d-wave-drop"></div>
+        <div class="d-wave-line"></div>
+      </div>
+
+      <div class="d-msg-card scroll-reveal">
+        <span class="d-msg-label">Message for You</span>
+        <p class="d-msg-text">
+          心の奥にある小さな火に、気づいて。<br>
+          それはすでに、あなたを動かす準備ができている
+        </p>
+      </div>
+
+      <div class="d-closing scroll-reveal">
+        <p class="d-closing-text">✦ &nbsp; その熱は、あなた自身のものだ &nbsp; ✦</p>
+      </div>
+
+      <div class="d-actions scroll-reveal">
+        <button class="btn-secondary" id="redrawBtn">
+          <span class="btn-icon">✦</span>
+          もう一度引く
+          <span class="btn-icon">✦</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* Embers */
+const embersEl = document.getElementById('embers');
+const emberColors = [
+  'rgba(204,48,32,0.85)','rgba(180,20,30,0.80)',
+  'rgba(220,80,40,0.75)','rgba(160,10,20,0.70)',
+  'rgba(240,100,50,0.65)'
+];
+for (let i = 0; i < 16; i++) {
+  const e = document.createElement('div');
+  e.className = 'ember';
+  const sz = Math.random() * 3 + 1.5;
+  e.style.cssText = `
+    width:${sz}px;height:${sz}px;
+    bottom:${Math.random()*20}%;
+    left:${Math.random()*96}%;
+    --ec:${emberColors[Math.floor(Math.random()*emberColors.length)]};
+    --ed:${(Math.random()*18+14).toFixed(1)}s;
+    --edl:${(Math.random()*12).toFixed(1)}s;
+    --eop:${(Math.random()*0.45+0.20).toFixed(2)};
+    --ex:${((Math.random()-0.5)*40).toFixed(0)}px;
+    filter:blur(${Math.random()<0.4?'0.5px':'0px'});
+  `;
+  embersEl.appendChild(e);
+}
+
+/* Date */
+document.getElementById('dateChip').textContent =
+  new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'}) + '  ·  DAILY READING';
+
+/* Card tilt */
+const card    = document.getElementById('stoneCard');
+const wrapper = document.getElementById('cardWrapper');
+function applyTilt(x,y,w,h){
+  const cx=x/w-.5,cy=y/h-.5;
+  card.style.transform=`rotateY(${cx*11}deg) rotateX(${-cy*9}deg)`;
+}
+wrapper.addEventListener('mousemove',e=>{const r=card.getBoundingClientRect();applyTilt(e.clientX-r.left,e.clientY-r.top,r.width,r.height);});
+wrapper.addEventListener('mouseleave',()=>{card.style.transform='rotateY(0) rotateX(0)';});
+wrapper.addEventListener('touchmove',e=>{const t=e.touches[0],r=card.getBoundingClientRect();applyTilt(t.clientX-r.left,t.clientY-r.top,r.width,r.height);},{passive:true});
+wrapper.addEventListener('touchend',()=>{card.style.transform='rotateY(0) rotateX(0)';});
+
+/* Particles */
+function burst(x,y,n=14){
+  const cols=['rgba(220,60,40,.90)','rgba(255,100,60,.85)','rgba(180,20,30,.80)','rgba(240,80,50,.75)','rgba(200,40,20,.70)'];
+  for(let i=0;i<n;i++){
+    const p=document.createElement('div');
+    p.className='ptcl';
+    const a=(i/n)*Math.PI*2,d=40+Math.random()*80,sz=Math.random()*4+1.5;
+    p.style.cssText=`left:${x}px;top:${y}px;width:${sz}px;height:${sz}px;background:${cols[Math.floor(Math.random()*cols.length)]};--tx:${Math.cos(a)*d}px;--ty:${Math.sin(a)*d}px;animation-duration:${(.8+Math.random()*.9).toFixed(2)}s;box-shadow:0 0 4px currentColor;`;
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),1800);
+  }
+}
+
+/* Screen transitions */
+const cardScreen=document.getElementById('cardScreen');
+const detailScreen=document.getElementById('detailScreen');
+
+function goToDetail(e){
+  const r=e.currentTarget.getBoundingClientRect();
+  burst(r.left+r.width/2,r.top+r.height/2);
+  cardScreen.classList.add('slide-out');
+  setTimeout(()=>{
+    cardScreen.classList.add('hidden');
+    cardScreen.classList.remove('slide-out');
+    detailScreen.classList.remove('hidden');
+    detailScreen.scrollTop=0;
+    initReveal();
+  },460);
+}
+function goToCard(){
+  detailScreen.classList.add('slide-out');
+  setTimeout(()=>{
+    detailScreen.classList.add('hidden');
+    detailScreen.classList.remove('slide-out');
+    cardScreen.classList.remove('hidden');
+  },460);
+}
+
+document.getElementById('openDetailBtn').addEventListener('click',goToDetail);
+document.getElementById('backBtn').addEventListener('click',goToCard);
+document.getElementById('redrawBtn').addEventListener('click',e=>{
+  const r=e.currentTarget.getBoundingClientRect();
+  burst(r.left+r.width/2,r.top+r.height/2,10);
+  goToCard();
+});
+
+/* Scroll reveal */
+function initReveal(){
+  const els=detailScreen.querySelectorAll('.scroll-reveal');
+  els.forEach(el=>el.classList.remove('visible'));
+  const obs=new IntersectionObserver(entries=>{
+    entries.forEach(en=>{if(en.isIntersecting){en.target.classList.add('visible');obs.unobserve(en.target);}});
+  },{threshold:.12});
+  els.forEach(el=>obs.observe(el));
+  setTimeout(()=>els.forEach(el=>{
+    if(el.getBoundingClientRect().top<window.innerHeight*1.1)el.classList.add('visible');
+  }),80);
+}
+detailScreen.addEventListener('scroll',()=>{
+  detailScreen.querySelectorAll('.scroll-reveal:not(.visible)').forEach(el=>{
+    if(el.getBoundingClientRect().top<window.innerHeight*1.05)el.classList.add('visible');
+  });
+});
+</script>
+
+</body>
+</html>

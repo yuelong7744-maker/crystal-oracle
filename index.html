@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Crystal Card</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at center, #0b1d2a, #000);
+      color: white;
+      font-family: sans-serif;
+    }
+    button {
+      padding: 20px 40px;
+      font-size: 18px;
+      border-radius: 30px;
+      border: none;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+  <link rel="apple-touch-icon" href="icon.png">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Crystal Oracle">
+</head>
+<body>
+
+<button onclick="drawCard()">✨ 今日の一枚を引く</button>
+
+<script>
+  const cards = [
+    "labradorite.html",
+    "larimar.html",
+    "ruby.html"
+  ];
+
+ function drawCard() {
+  document.body.style.opacity = "0.5";
+
+  setTimeout(() => {
+    const cards = [
+      "labradorite.html",
+      "larimar.html",
+      "ruby.html"
+    ];
+    const randomIndex = Math.floor(Math.random() * cards.length);
+    window.location.href = cards[randomIndex];
+  }, 500);
+}
+</script>
+
+</body>
+</html>
